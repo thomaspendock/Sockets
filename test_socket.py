@@ -131,7 +131,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     print('Your address: ', host_address)
     print('SET <address> <name>       # Remembers the name' )
     print('MSG <name> <message/data>  # Send data to the remembered name' )
-    print('Type \'q\', enter, and then Ctrl-c to quit.')
+    print('Type \'q\' and enter to quit.')
+    print('')
     name_ip[MYNAME] = host_address # So i can talk to myself
     ip_name[host_address.split(':')[0]] = MYNAME
     
