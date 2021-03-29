@@ -2,19 +2,31 @@ import socket
 import threading
 import time
 
-MYNAME = 'Thomas'
+MYNAME = 'ME'
 name_ip = {}
 ip_name = {}
 
 #PORT = 1111 # somtimes port is taken...
 IP   = socket.gethostbyname(socket.gethostname())
 
-allcons = set()
+exit_lock = threading.Lock()
+user_exit = False
+#allcons = set()
 
 def got_connection(conn, addr):
+    global user_exit
+    
     #print("GOT CONNECTION FROM", str(addr))
+    # RuntimeError: Set changed size during iteration
     with conn:
         while True:
+            
+            exit_lock.acquire()
+            do_exit = user_exit
+            exit_lock.release()
+            if do_exit:
+                exit(0)
+            
             data = conn.recv(1024)
             
             if not data:
@@ -24,16 +36,17 @@ def got_connection(conn, addr):
             s_addr = addr[0]
             #print('FROM', s_addr)
             sender_name = s_addr if s_addr not in ip_name else ip_name[s_addr]
-            print(ip_name)
             print('From', sender_name, ':', data.decode('utf-8'))
-            
-            
+
+            '''
+            # What does this do?
             for c in allcons:
                 hdr = "Message from %s: "%str(addr)
                 try:
                     c.sendall(hdr.encode("utf-8") + data)
                 except IOError:
                     pass
+            '''
 
 def find_port(s, port=1111):
     if port > 9999:
@@ -71,10 +84,24 @@ def MSG(name, data):
 
     netcat_thread = threading.Thread(target=netcat, args=(ip, port, data))
     netcat_thread.start()
+
+def QUIT():
+    global user_exit
+    print('Press Ctrl-C to quit.')
+    
+    exit_lock.acquire()
+    user_exit = True
+    exit_lock.release()
+
+    MSG('ME', 'is quitting...')
+    
+    exit(0)
     
 def parse(s):
     if s.lower() == 'q':
-        exit(0)
+        QUIT()
+
+        
     # code name data
     s_split = s.split()
     if len(s_split) < 3:
@@ -92,9 +119,8 @@ def parse(s):
 
 def send():
     while True:
-        
         time.sleep(0.5)
-        send_msg = input('Send something: ')
+        send_msg = input('')#input('Send something: ')
         parse(send_msg)
     
 
@@ -102,19 +128,36 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
     port = find_port(s)
     host_address = ':'.join((IP,str(port)))
-    print('Host: ', host_address)
+    print('Your address: ', host_address)
+    print('SET <address> <name>       # Remembers the name' )
+    print('MSG <name> <message/data>  # Send data to the remembered name' )
+    print('Type \'q\', enter, and then Ctrl-c to quit.')
     name_ip[MYNAME] = host_address # So i can talk to myself
     ip_name[host_address.split(':')[0]] = MYNAME
     
     s.listen()
+
+    send_thread = threading.Thread(target=send) #args=(conn, addr))
+    send_thread.start()
+    
     while True:
-        t2 = threading.Thread(target=send) #args=(conn, addr))
-        t2.start()
+
+        exit_lock.acquire()
+        if user_exit:
+            break
+            exit(0)
+            #allcons.add(conn)
+        exit_lock.release()
         
         conn, addr = s.accept()
-        allcons.add(conn)
         t = threading.Thread(target=got_connection, args=(conn, addr))
         t.start()
+        
+        
+        
+        
+        
+        
 
         
 
