@@ -11,6 +11,7 @@ import user_info # not implemented
 
 
 # error when user joins back in?
+# "Could not find that address"
 
 
 
@@ -103,8 +104,6 @@ API = [MSG, EXEC, MYNAME, MYPSWD, QUIT]
 # Absolutley no parsing should be handled by API functions....
 def parse(s):
     '''Expects s in form "<code> <name> <data>"  '''
-
-    print(name_ip)
     
     s_split = s.split()
 
@@ -219,6 +218,8 @@ def send_packet(host, port, content):
     send_lock.release()
 
     send_lock.acquire()
+
+    # Error is below somewhere
     try:
         sender.sendall(content.encode())
     except BrokenPipeError:
