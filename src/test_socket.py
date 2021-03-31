@@ -154,8 +154,9 @@ def border(s, w, h, s_width=None, rgb=None, index=256):
 
 def welcome():
     '''Prints welcome and info'''
-    welcome_msg  = '---===<<<( WELCOME )>>>===---'
-    b1, rw = border(welcome_msg, 1, 1, index=237)
+    #welcome_msg  = '---===<<<( WELCOME )>>>===---'
+    welcome_msg = 'W E L C O M E'
+    b1, rw = border(welcome_msg, 4, 1, index=237)
     b2, rw = border(b1, 0, 0, rw, index=243)
     b3, rw = border(b2, 0, 0, rw, index=247)
     print(b3)
@@ -167,7 +168,7 @@ def welcome():
     command_color = 117
     comment_color = 115
     commands =  fg('Commands:\n', index=command_color)
-    commands += fg('------------------------------------------------------------\n', index=243)
+    commands += fg('-------------------------------------------------------------\n', index=243)
     commands += fg('SET <address> <name>       ', index=command_color)
     commands += fg('# Remembers address\'s name\n', index=comment_color)
     commands += fg('MSG <name> <message/data>  ', index=command_color)
