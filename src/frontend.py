@@ -1,9 +1,13 @@
 from grafix import *
 from macColors import *
 from random import randint
-from test_socket import API
+import threading
+
+# Circular import, cant run as main but can be an imported module
+from test_socket import API 
 
 msg_color = 255 # Default: white
+print_lock = threading.Lock()
 
 def set_user_color():
     global msg_color
@@ -21,7 +25,7 @@ def welcome():
 def commands():
     command_color = 117
     comment_color = 115
-    max_title_len = 48
+    max_title_len = 54
     commands = ''
     
     commands_col = 'Commands:'
@@ -40,43 +44,54 @@ def commands():
     
     max_code_len  = 5
     for cmd in  API:
+        cmd_name = cmd.__name__
         title, usage = cmd.__doc__.split('\n')
+        title = ('%s - ' % cmd_name) + title
         spacing = ' ' * (max_title_len-len(title)) # If neg this breaks
         commands += fg(title, index=command_color) + spacing + fg(usage, index=comment_color)
         commands += '\n'
-    #commands += fg('SET <name> <address>', index=command_color)
-    #commands += fg('# Remembers address\'s name\n', index=comment_color)
-    #commands += fg('MSG <name> <message>', index=command_color)
-    #commands += fg('# Send data to the remembered name\n', index=comment_color)
-    #commands += fg('QUIT', index=command_color)
-    #commands += fg('# Quit\n', index=comment_color)
     commands += '\n'
     print(commands)
 
-def user_info(user_address):
+def user_info(user_name, user_address):
+    your_name    = bg('Your name: ' + user_name, index=67)
     your_address = bg('Your receiving address: ' + user_address, rgb=(0,3,3)) + '\n'
+    print(your_name)
     print(your_address)
 
 def goodbye():
     print(fg('Goodbye.', index=196))
 
 def error(error_msg):
+    print_lock.acquire()
     print(fg(error_msg, index=196))
-
+    print_lock.release()
+    
 def user_color(msg):
     global msg_color
     
     return fg(msg, index=msg_color)
 
 def message_prompt():
-    return '> '
+    return '\b\b\b> '
 
 def on_received(sender_name, message):
-    print(sender_name+':', message)
+    print_lock.acquire()
+    s = sender_name+': ' + message + '\n'
+    s += '> '
+    
+    print(s, end='')
+    print_lock.release()
 
 
-
-
+def command_output(sender_name, msg, out, fail=True):
+    s = ''
+    color = 196 if fail else 46
+    s += fg(msg, index=color)
+    if len(out) > 0:
+        s += fg(sender_name+'\'s output:\n', index=42)
+        s += '\n' + out + '\n'
+    return s
 
 
 
