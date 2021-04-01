@@ -1,7 +1,9 @@
 from grafix import *
 from macColors import *
-from random import randint
+from random import randint, choice
 import threading
+import time
+import sys
 
 # Circular import, cant run as main but can be an imported module
 from test_socket import API 
@@ -36,9 +38,9 @@ def commands():
     commands += fg(comments_col, index=comment_color)
     commands += '\n'
 
-    commands_underline = '-' * 40
+    commands_underline = '-' * (max_title_len - 8)
     spacing = ' ' * (max_title_len-len(commands_underline))
-    comments_underline = '-' * 20
+    comments_underline = '-' * 30
 
     commands += fg(commands_underline + spacing + comments_underline, index=243) + '\n'
     
@@ -77,10 +79,21 @@ def message_prompt():
 
 def on_received(sender_name, message):
     print_lock.acquire()
-    s = sender_name+': ' + message + '\n'
-    s += '> '
+
+    text = message['text']
+    animated = False if 'animation' not in message else message['animation']
+
+    sys.stdout.write(sender_name + ': ')
     
-    print(s, end='')
+    if animated and 'color' in message:
+        animate = choice([animate1, animate2, animate3, animate4])
+        animate(text, message['color'])
+    else:
+        sys.stdout.write(text)
+        
+    sys.stdout.write('\n> ')
+    sys.stdout.flush()
+    
     print_lock.release()
 
 
@@ -89,11 +102,99 @@ def command_output(sender_name, msg, out, fail=True):
     color = 196 if fail else 46
     s += fg(msg, index=color)
     if len(out) > 0:
-        s += fg(sender_name+'\'s output:\n', index=42)
+        s += fg(' Showing ' + sender_name+'\'s output...\n', index=42)
         s += '\n' + out + '\n'
     return s
 
+# put in grafix module??
 
+def light(s, i, color, r=5):
+    '''Places a symmetrical light inside the text'''
+    l = len(s)
+    new_s = ''
+    for j in range(len(s)):
+        dis = abs(i - j)
+        rj = 0 if dis > r else r - dis
+
+        colorj = color + rj
+
+        new_s += fg(s[j], index=colorj)
+    
+    return new_s, l
+
+def seperate(s, space):
+    new_s = ''
+    for c in s:
+        new_s += ' '*space
+        new_s += c
+    new_s += ' '*len(s)
+    return new_s, len(new_s)
+
+def appear(s, i):
+    base = 232
+    return fg(s, index=base+i), len(s)
+
+def glitch(s, i):
+
+    new_s = ''
+    for j in range(len(s)):
+        new_s += s[j] if j < i else chr(randint(ord('a'), ord('z')))
+
+    return new_s, len(s)
+
+def animate1(message, color):
+    for i in range(0, len(message) + 1):
+        sub_message = message
+        s, l = glitch(sub_message, i)
+        sys.stdout.write(s)
+        sys.stdout.flush()
+        time.sleep(0.019)
+        sys.stdout.write('\b' * l)
+        
+    sys.stdout.write(fg(message, index=color))
+    sys.stdout.flush()
+
+def animate4(message, color):
+    for i in range(0, 24):
+        sub_message = message
+        s, l = appear(sub_message, i)
+        sys.stdout.write(s)
+        sys.stdout.flush()
+        time.sleep(0.045)
+        sys.stdout.write('\b' * l)
+        
+    sys.stdout.write(fg(message, index=color))
+    sys.stdout.flush()
+
+def animate3(message, color):
+    for i in range(5, -1, -1):
+        sub_message = message
+        s, l = seperate(sub_message, i)
+        
+        sys.stdout.write(s)
+        sys.stdout.flush()
+        time.sleep(0.15 + 0.019)
+        sys.stdout.write('\b' * l)
+        
+    sys.stdout.write(fg(message, index=color))
+    sys.stdout.flush()
+    
+
+def animate2(message, color):
+    r = 10
+    
+    for i in range(r + len(message)):
+        sub_message = message #message[:i]
+        s, l = light(sub_message, i, color, r=r)
+        
+        sys.stdout.write(s)
+        sys.stdout.flush()
+        time.sleep(0.019)
+        sys.stdout.write('\b' * l)
+        
+    sys.stdout.write(fg(message, index=color))
+    sys.stdout.flush()
+    
 
 
 

@@ -13,13 +13,33 @@ import user_info # not implemented
 # error when user joins back in?
 # "Could not find that address"
 
+# when user leaves, EXEC 
 
+class ParseError(Exception):
+    def __init__(self, message):            
+        # Call the base class constructor with the parameters it needs
+        super().__init__(message)
+            
+        # Now for your custom code...
+        self.message = message
 
 # MESSAGES API
 
-def construct_packet(message='', execute={}, data=''):
+def get_ip_and_port(name_or_addr):
+    address_str = name_or_addr if name_or_addr not in name_ip else name_ip[name_or_addr]
+    try:
+        ip, port = address_str.split(':')
+    except ValueError:
+        raise ParseError('Bad address or name.')
+    
+    return ip, port
+
+def construct_packet(message={}, execute={}, data=''):
     global myname, myaddr
-    d = {'msg': message, 'exec': execute, 'data': data, 'metadata': {'ra': myaddr, 'name': myname}}
+    d = {'msg': message,
+         'exec': execute,
+         'data': data,
+         'metadata': {'ra': myaddr, 'name': myname}}
     return json.dumps(d)
 
 def set_name(name, data):
@@ -42,15 +62,16 @@ def MYPSWD(new_password, *args):
     
 def MSG(name, data):
     '''Send a message to a remembered name.\nMSG <name> <message>'''
-    data = frontend.user_color(data)
-
-    try:
-        ip, port = (name if name not in name_ip else name_ip[name]).split(':')
-    except ValueError:
-        raise ValueError('Bad address or name.')
-        return
-
-    packet = construct_packet(message=data)
+    #data = frontend.user_color(data)
+    
+    ip, port = get_ip_and_port(name)
+    
+    message = {}
+    message['text'] = data
+    message['color'] = frontend.msg_color
+    message['animation'] = True
+    
+    packet = construct_packet(message=message)
     netcat_thread = threading.Thread(target=send_packet, args=(ip, port, packet))
     netcat_thread.start()
 
@@ -66,16 +87,14 @@ def QUIT(*args):
         pass
     exit(0)
 
-# Called on user send exec!
-# fuck i need to implement packets...
 def EXEC(name, data):
     '''Execute a command on someone else's behalf.\nEXEC <name> <password> <command>'''
     
     # Parse
-    ip, port = name_ip[name].split(':')
+    ip, port = get_ip_and_port(name)
     data_args = data.split(' ')
     password_guess = data_args[0]
-    exec_command   = ''.join(data_args[1:])
+    exec_command   = ' '.join(data_args[1:])
 
     # Handle arguement errors
     if len(password_guess) == 0:
@@ -86,7 +105,10 @@ def EXEC(name, data):
         return
 
     # Construct packet contents
-    message = '* is trying to execute this command \"%s\"' % exec_command
+    message = {}
+    message['text']      = '\b\b is trying to execute this command \"%s\"' % exec_command
+    message['animation'] = False
+    
     execute = {'pswd': password_guess, 'command': exec_command}
     
     packet  = construct_packet(message=message, execute=execute)
@@ -118,20 +140,19 @@ def parse(s):
 
     
     # Run arbitrary function with the same name as code
-    
+
+    # Check to see if the code matches a func in the API
+    if code not in map(lambda f: f.__name__, API):
+        frontend.error('Not a valid command.')
+        return
+
+    command = eval(code)
     try:
-        command = eval(code)
-        command(name, args)     
-    except NameError:
-        frontend.error('Not a valid command.')
-    except TypeError:
-        frontend.error('Not a valid command.')
-    except ValueError as e:
+        command(name, args)
+    except ParseError as e:
+        frontend.error(e.message)
+    except ConnectionRefusedError as e:
         frontend.error(str(e))
-    except SyntaxError:
-        frontend.error('Not a valid command.')
-    except KeyError:
-        frontend.error('Unkown name.')
         
 
 # RECEIVE API
@@ -159,11 +180,16 @@ def on_receive_exec(sender_name, msg, metadata):
         send_back_msg = 'Wrong password!'
     else:
         send_back_msg = 'Correct password!'
-        result = subprocess.check_output(msg['command'], shell=True).decode('utf-8')
+        try:
+            result = subprocess.check_output(msg['command'], shell=True).decode('utf-8')
+        except:
+            result = 'Process failed!'
+            frontend.error(metadata['name'] + '\'s command failed!')
+            print('> ') # move to frontend somehow
         fail = False
 
-    
-    message = frontend.command_output(myname, send_back_msg, result, fail=fail)
+    message = {}
+    message['text'] = frontend.command_output(myname, send_back_msg, result, fail=fail)
 
     packet = construct_packet(message=message)
     netcat_thread = threading.Thread(target=send_packet, args=(ip, port, packet))
@@ -204,7 +230,8 @@ def find_port(s, port=1111):
         return port
     except OSError:
         return find_port(s, port=port + 1)
-    
+
+'''
 def send_packet(host, port, content):
     global sender, send_lock
 
@@ -227,8 +254,27 @@ def send_packet(host, port, content):
     except OSError:
         frontend.error('Could not find that address.')
     send_lock.release()
+'''
+
+def send_packet(host, port, content):
     
+    sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
+    try:
+        sender.connect((host, int(port)))
+        sender.sendall(content.encode())
+        sender.shutdown(socket.SHUT_WR)
+        sender.close()
+    except ConnectionRefusedError:
+        frontend.error('Could not find address.')
+    except OSError:
+        frontend.error('OS Error.')
+    except ValueError:
+        frontend.error('That ain\'t an address!')
+        
+        
+    
+
 
 def send():
     '''Listens for any command the user types and sends'''
@@ -239,8 +285,8 @@ def send():
 
 if __name__ == '__main__':
     # read name and password
-    myname = 'ABCDEFG'[randint(0, 6)]
-    mypswd = str(randint(0, 4095))
+    myname = 'Default' + 'ABCDEFG'[randint(0, 6)]
+    mypswd = ''.join(chr(randint(ord('a'), ord('z'))) for i in range(64))
     myaddr = ''
     
     # Mappings to keep track of named IP addresses
