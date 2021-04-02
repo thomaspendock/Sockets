@@ -6,22 +6,23 @@ from random import randint
 import frontend
 import subprocess
 import json
+from Games import TicTacToeClass
+from Games import GameInterface
+import pickle
 
-import user_info # not implemented
-
+# import user_info # not implemented
 
 # error when user joins back in?
 # "Could not find that address"
+# when user leaves, EXEC
 
-# when user leaves, EXEC 
+
+# name --> active game (only 1)
+active_games = dict()
 
 class ParseError(Exception):
-    def __init__(self, message):            
-        # Call the base class constructor with the parameters it needs
-        super().__init__(message)
-            
-        # Now for your custom code...
-        self.message = message
+    def __init__(self, message):
+        super().__init__(message); self.message = message
 
 # MESSAGES API
 
@@ -34,13 +35,14 @@ def get_ip_and_port(name_or_addr):
     
     return ip, port
 
-def construct_packet(message={}, execute={}, data=''):
+def construct_packet(message={}, execute={}, game={}, data='', use_pickle=False):
     global myname, myaddr
     d = {'msg': message,
          'exec': execute,
          'data': data,
+         'game': game,
          'metadata': {'ra': myaddr, 'name': myname}}
-    return json.dumps(d)
+    return pickle.dumps(d) if use_pickle else json.dumps(d).encode()
 
 def set_name(name, data):
     #'''SET - Remember address's name.\nSET <name> <address>'''
@@ -80,7 +82,6 @@ def QUIT(*args):
     global user_exit, sender, receiver, send_lock
     frontend.goodbye()
     receiver.close()
-    sender.close()
     try:
         send_lock.release()
     except RuntimeError:
@@ -116,11 +117,63 @@ def EXEC(name, data):
     # Send packet to address!
     netcat_thread = threading.Thread(target=send_packet, args=(ip, port, packet))
     netcat_thread.start()
+
+def PLAY(name, data):
+    '''Open a game with someone.\nPLAY <name> <game> <args>'''
+    global myaddr
     
+    ip, port = get_ip_and_port(name)
+
+    split_data = data.split()
+    game_type  = split_data[0]
+    game_args  = split_data[1:]
+    game_module = '%sClass.%s' % (game_type, game_type)
+    game_class = eval(game_module)
+    game = game_class([myaddr, ip+':'+port], *game_args)
+
+    # Create the game on my end
+    active_games[ip+':'+port] = game
+
+    # Send the PLAY to other
+    game_packet = {'object': game}
+    packet = construct_packet(game=game_packet, use_pickle=True)
+    netcat_thread = threading.Thread(target=send_packet, args=(ip, port, packet))
+    netcat_thread.start()
+
+def MOVE(name, data):
+    '''Make a move in an opened game.\nMOVE <name> <args>'''
+    global myaddr, myname
     
+    ip, port = get_ip_and_port(name)
+    addr = ip+':'+port
+    if addr not in active_games:
+        raise GameInterface.GameError('Not in a game with %s.' % name)
+
+    game = active_games[addr]
+
+    args = data.split()
+    result = game.move(myaddr, *args)
 
 
-API = [MSG, EXEC, MYNAME, MYPSWD, QUIT]
+    
+    # Check game over
+    #message = {}
+    winner = game.winner()
+    if winner:
+        game_name = type(game).__name__
+        del active_games[addr]
+        opponent_message = frontend.game_over(myaddr==winner, game_name, myname, name)
+        #message['text'] = opponent_message
+
+    print(game)
+    
+    # Send results back to opponent
+    game_packet = {'object': game}
+    packet = construct_packet(game=game_packet, use_pickle=True)
+    netcat_thread = threading.Thread(target=send_packet, args=(ip, port, packet))
+    netcat_thread.start()
+
+API = [MSG, EXEC, MYNAME, MYPSWD, QUIT, PLAY, MOVE]
 
 
 # Absolutley no parsing should be handled by API functions....
@@ -153,21 +206,56 @@ def parse(s):
         frontend.error(e.message)
     except ConnectionRefusedError as e:
         frontend.error(str(e))
+    except GameInterface.GameError as e:
+        frontend.error(e.message)
         
 
 # RECEIVE API
-def on_receive_msg(sender_name, msg, metadata):
+def on_receive_msg(msg, metadata):
     # Add sender's name to my list of known names
     set_name(metadata['name'], metadata['ra'])
-    
-    frontend.on_received(sender_name, msg)
+    frontend.on_received(metadata['name'], msg)
 
-def on_receive_data(sender_name, msg, metadata):
+def on_receive_data(msg, metadata):
     pass
 
-def on_receive_exec(sender_name, msg, metadata):
-    global myname, mypswd
+def on_receive_game(game_packet, metadata):
+    global myname, myaddr
     
+    set_name(metadata['name'], metadata['ra'])
+    
+    ra = metadata['ra']
+    sender_name = metadata['name']
+    
+    
+    game_object = game_packet['object']
+    game_name = type(game_object).__name__
+
+    # Check if opponent one the game
+    winner = game_object.winner()
+    if winner:
+        del active_games[ra]
+        frontend.game_over(myaddr==winner, game_name, myname, sender_name)
+        print(game_object)
+        print('>', end='')
+        return
+    
+    # New game
+    if ra not in active_games:
+        message = {'text': "\b\b has challenged you in %s!" % game_name}
+        game_object.set_turn(myaddr)
+    # Old game, receiving a new move
+    else:
+        message = {'text': "\b\b has made their move in %s!" % game_name}
+        message['text'] += '\n' + str(game_object) + '\n'
+
+    frontend.on_received(sender_name, message)
+    active_games[ra] = game_object
+    
+def on_receive_exec(msg, metadata):
+    global myname, mypswd
+
+    sender_name = metadata['name']
     ip, port = metadata['ra'].split(':')
 
     
@@ -185,7 +273,7 @@ def on_receive_exec(sender_name, msg, metadata):
         except:
             result = 'Process failed!'
             frontend.error(metadata['name'] + '\'s command failed!')
-            print('> ') # move to frontend somehow
+            print('> ') # TODO: move to frontend somehow
         fail = False
 
     message = {}
@@ -196,7 +284,7 @@ def on_receive_exec(sender_name, msg, metadata):
     netcat_thread.start()
 
 
-# Backend
+# BACK END RECEIVE
 def got_connection(conn, addr):
     global user_exit
 
@@ -204,12 +292,13 @@ def got_connection(conn, addr):
     with conn:
         while True:
             data = conn.recv(1024)
-            if not data:
-                break
+            if not data: break
             
-
-            decoded = data.decode('utf-8')
-            packet = json.loads(decoded)
+            try:
+                decoded = data.decode('utf-8')
+                packet = json.loads(decoded)
+            except UnicodeDecodeError:
+                packet = pickle.loads(data)
 
             sender_name = packet['metadata']['name']
             
@@ -219,7 +308,7 @@ def got_connection(conn, addr):
 
                 # Call the receive handler
                 on_receive_func = eval('on_receive_%s' % k)
-                on_receive_func(sender_name, v, packet['metadata'])
+                on_receive_func(v, packet['metadata'])
             
 
 def find_port(s, port=1111):
@@ -231,38 +320,14 @@ def find_port(s, port=1111):
     except OSError:
         return find_port(s, port=port + 1)
 
-'''
 def send_packet(host, port, content):
-    global sender, send_lock
-
-    send_lock.acquire()
-    try:
-        sender.connect((host, int(port)))
-    except OSError: # Already connected errr
-        pass
-        #send_lock.release()
-        #return
-    send_lock.release()
-
-    send_lock.acquire()
-
-    # Error is below somewhere
-    try:
-        sender.sendall(content.encode())
-    except BrokenPipeError:
-        frontend.error('Could not find that address.')
-    except OSError:
-        frontend.error('Could not find that address.')
-    send_lock.release()
-'''
-
-def send_packet(host, port, content):
+    '''Sends content (bytes) to host:port'''
     
     sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     try:
         sender.connect((host, int(port)))
-        sender.sendall(content.encode())
+        sender.sendall(content)
         sender.shutdown(socket.SHUT_WR)
         sender.close()
     except ConnectionRefusedError:
@@ -272,9 +337,6 @@ def send_packet(host, port, content):
     except ValueError:
         frontend.error('That ain\'t an address!')
         
-        
-    
-
 
 def send():
     '''Listens for any command the user types and sends'''
@@ -302,7 +364,7 @@ if __name__ == '__main__':
     frontend.set_user_color()
 
     receiver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sender   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #sender   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     port = find_port(receiver)
     myaddr = ':'.join((IP,str(port)))
@@ -325,7 +387,6 @@ if __name__ == '__main__':
         except ConnectionAbortedError: # On quit
             break
 
-    sender.close()
     receiver.close()
             
         

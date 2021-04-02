@@ -1,4 +1,4 @@
-from grafix import *
+from grafix import border, animate, ANIMATIONS
 from macColors import *
 from random import randint, choice
 import threading
@@ -77,6 +77,21 @@ def user_color(msg):
 def message_prompt():
     return '\b\b\b> '
 
+
+def game_over(winner, game_name, user_name, opponent_name):
+    
+
+    colors = [196, 46]
+    message = 'You %s %s against %s!'
+    outcomes = ['lost', 'won']
+
+    user_message = message % (outcomes[winner], game_name, opponent_name)
+    user_message = fg(user_message, index=colors[winner])
+
+    print_lock.acquire()
+    print(user_message)
+    print_lock.release()
+
 def on_received(sender_name, message):
     print_lock.acquire()
 
@@ -84,10 +99,10 @@ def on_received(sender_name, message):
     animated = False if 'animation' not in message else message['animation']
 
     sys.stdout.write(sender_name + ': ')
-    
+
     if animated and 'color' in message:
-        animate = choice([animate1, animate2, animate3, animate4])
-        animate(text, message['color'])
+        animation = choice(ANIMATIONS)
+        animate(text, message['color'], animation)
     else:
         sys.stdout.write(text)
         
@@ -106,96 +121,7 @@ def command_output(sender_name, msg, out, fail=True):
         s += '\n' + out + '\n'
     return s
 
-# put in grafix module??
-
-def light(s, i, color, r=5):
-    '''Places a symmetrical light inside the text'''
-    l = len(s)
-    new_s = ''
-    for j in range(len(s)):
-        dis = abs(i - j)
-        rj = 0 if dis > r else r - dis
-
-        colorj = color + rj
-
-        new_s += fg(s[j], index=colorj)
-    
-    return new_s, l
-
-def seperate(s, space):
-    new_s = ''
-    for c in s:
-        new_s += ' '*space
-        new_s += c
-    new_s += ' '*len(s)
-    return new_s, len(new_s)
-
-def appear(s, i):
-    base = 232
-    return fg(s, index=base+i), len(s)
-
-def glitch(s, i):
-
-    new_s = ''
-    for j in range(len(s)):
-        new_s += s[j] if j < i else chr(randint(ord('a'), ord('z')))
-
-    return new_s, len(s)
-
-def animate1(message, color):
-    for i in range(0, len(message) + 1):
-        sub_message = message
-        s, l = glitch(sub_message, i)
-        sys.stdout.write(s)
-        sys.stdout.flush()
-        time.sleep(0.019)
-        sys.stdout.write('\b' * l)
-        
-    sys.stdout.write(fg(message, index=color))
-    sys.stdout.flush()
-
-def animate4(message, color):
-    for i in range(0, 24):
-        sub_message = message
-        s, l = appear(sub_message, i)
-        sys.stdout.write(s)
-        sys.stdout.flush()
-        time.sleep(0.045)
-        sys.stdout.write('\b' * l)
-        
-    sys.stdout.write(fg(message, index=color))
-    sys.stdout.flush()
-
-def animate3(message, color):
-    for i in range(5, -1, -1):
-        sub_message = message
-        s, l = seperate(sub_message, i)
-        
-        sys.stdout.write(s)
-        sys.stdout.flush()
-        time.sleep(0.15 + 0.019)
-        sys.stdout.write('\b' * l)
-        
-    sys.stdout.write(fg(message, index=color))
-    sys.stdout.flush()
-    
-
-def animate2(message, color):
-    r = 10
-    
-    for i in range(r + len(message)):
-        sub_message = message #message[:i]
-        s, l = light(sub_message, i, color, r=r)
-        
-        sys.stdout.write(s)
-        sys.stdout.flush()
-        time.sleep(0.019)
-        sys.stdout.write('\b' * l)
-        
-    sys.stdout.write(fg(message, index=color))
-    sys.stdout.flush()
-    
-
+# put below stuff in grafix module??
 
 
         
