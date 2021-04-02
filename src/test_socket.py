@@ -16,6 +16,10 @@ import pickle
 # "Could not find that address"
 # when user leaves, EXEC
 
+# TAKE A WHILE W 5 by 5 board
+
+
+# game ends??
 
 # name --> active game (only 1)
 active_games = dict()
@@ -244,8 +248,9 @@ def on_receive_game(game_packet, metadata):
     if ra not in active_games:
         message = {'text': "\b\b has challenged you in %s!" % game_name}
         game_object.set_turn(myaddr)
-        print(game)
-        print('\n>', end='')
+        print('\n')
+        print(game_object)
+        print('\n\n> ', end='')
     # Old game, receiving a new move
     else:
         message = {'text': "\b\b has made their move in %s!" % game_name}

@@ -11,7 +11,7 @@ def _get_player_tokens(players):
     return dict(zip(players, token))
 
 class TicTacToe(GameInterface.Game):
-    def __init__(self, players, width, height, to_win):
+    def __init__(self, players, height, width, to_win):
         super().__init__(players)
         
         #height = int(args[0]); width = int(args[1]); to_win = int(args[2])
@@ -65,6 +65,10 @@ class TicTacToe(GameInterface.Game):
         rows = list(range(self.height - 1, -1, -1)) + [0]*(self.width - 1)
         cols = [0]*self.width + list(range(1, self.height))
 
+        print(self.height)
+        print(self.width)
+        print(rows, cols)
+
         for mirror in [0, 1]:
             for start_row, start_col in zip(rows, cols):
                 row, col = start_row, start_col
@@ -73,6 +77,7 @@ class TicTacToe(GameInterface.Game):
                     
                     # Flip the board by reversing column
                     mirror_col = self.height - 1 - col if mirror else col
+                    print(row, mirror_col)
 
                     # Check match and udpate running streak of matched tokens
                     match = self.board[row][mirror_col] == self.players[player]

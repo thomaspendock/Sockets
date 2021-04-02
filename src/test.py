@@ -3,11 +3,11 @@ from Games import TicTacToeClass
 
         
 if __name__ == '__main__':
-    game = TicTacToeClass.TicTacToe(['p1', 'p2'], 5, 5, 4)
+    game = TicTacToeClass.TicTacToe(['p1', 'p2'], 1, 5, 2)
     game.turn = 'p1'
 
-    p1_moves = [(0, 0), (1, 1), (2, 2), (3, 3)]
-    p2_moves = [(0, 1), (1, 2), (2, 1), (3, 1)]
+    p1_moves = [(0, 0), (0, 1)]
+    p2_moves = [(0, 4), (0, 2)]
 
     for m1, m2 in zip(p1_moves, p2_moves):
         
