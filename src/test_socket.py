@@ -244,6 +244,8 @@ def on_receive_game(game_packet, metadata):
     if ra not in active_games:
         message = {'text': "\b\b has challenged you in %s!" % game_name}
         game_object.set_turn(myaddr)
+        print(game)
+        print('\n>', end='')
     # Old game, receiving a new move
     else:
         message = {'text': "\b\b has made their move in %s!" % game_name}
