@@ -78,8 +78,16 @@ def message_prompt():
     return '\b\b\b> '
 
 
-def game_over(winner, game_name, user_name, opponent_name):
+def new_carrot():
+    print_lock.acquire()
     
+    sys.stdout.write('\n> ')
+    sys.stdout.flush()
+    
+    print_lock.release()
+
+def game_over(winner, game_name, user_name, opponent_name):
+    print_lock.acquire()
 
     colors = [196, 46]
     message = 'You %s %s against %s!'
@@ -88,8 +96,10 @@ def game_over(winner, game_name, user_name, opponent_name):
     user_message = message % (outcomes[winner], game_name, opponent_name)
     user_message = fg(user_message, index=colors[winner])
 
-    print_lock.acquire()
-    print(user_message)
+    
+    sys.stdout.write(user_message + '\n')
+    sys.stdout.flush()
+    
     print_lock.release()
 
 def on_received(sender_name, message):

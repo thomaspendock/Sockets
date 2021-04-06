@@ -239,18 +239,19 @@ def on_receive_game(game_packet, metadata):
     winner = game_object.winner()
     if winner:
         del active_games[ra]
-        frontend.game_over(myaddr==winner, game_name, myname, sender_name)
+        print('')
         print(game_object)
-        print('>', end='')
+        frontend.game_over(myaddr==winner, game_name, myname, sender_name)
+        frontend.new_carrot()
+        
         return
     
     # New game
     if ra not in active_games:
         message = {'text': "\b\b has challenged you in %s!" % game_name}
+        message['text'] += '\n' + str(game_object) + '\n'
         game_object.set_turn(myaddr)
-        print('\n')
-        print(game_object)
-        print('\n\n> ', end='')
+        
     # Old game, receiving a new move
     else:
         message = {'text': "\b\b has made their move in %s!" % game_name}
