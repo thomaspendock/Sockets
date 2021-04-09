@@ -1,12 +1,13 @@
-from grafix import border, animate, ANIMATIONS
-from macColors import *
+from Frontend.TerminalGraphics.macColors import *
+from Frontend.TerminalGraphics.grafix import *
+
 from random import randint, choice
 import threading
 import time
 import sys
 
 # Circular import, cant run as main but can be an imported module
-from test_socket import API 
+from Send.send_api import API 
 
 msg_color = 255 # Default: white
 print_lock = threading.Lock()
@@ -45,10 +46,11 @@ def commands():
     commands += fg(commands_underline + spacing + comments_underline, index=243) + '\n'
     
     max_code_len  = 5
-    for cmd in  API:
-        cmd_name = cmd.__name__
-        title, usage = cmd.__doc__.split('\n')
-        title = ('%s - ' % cmd_name) + title
+    for cmd_name in API:
+        
+        descr = API[cmd_name].description()
+        usage = API[cmd_name].grammar()
+        title = ('%s - ' % cmd_name) + descr
         spacing = ' ' * (max_title_len-len(title)) # If neg this breaks
         commands += fg(title, index=command_color) + spacing + fg(usage, index=comment_color)
         commands += '\n'
@@ -81,7 +83,7 @@ def message_prompt():
 def new_carrot():
     print_lock.acquire()
     
-    sys.stdout.write('\n> ')
+    sys.stdout.write('> ')
     sys.stdout.flush()
     
     print_lock.release()
@@ -96,7 +98,6 @@ def game_over(winner, game_name, user_name, opponent_name):
     user_message = message % (outcomes[winner], game_name, opponent_name)
     user_message = fg(user_message, index=colors[winner])
 
-    
     sys.stdout.write(user_message + '\n')
     sys.stdout.flush()
     

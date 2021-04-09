@@ -1,7 +1,9 @@
 from Games import GameInterface
 from random import sample
-from macColors import *
-from grafix import border
+
+
+from Frontend.TerminalGraphics.macColors import *
+from Frontend.TerminalGraphics.grafix import border
 
 # Private helper
 def _get_player_tokens(players):

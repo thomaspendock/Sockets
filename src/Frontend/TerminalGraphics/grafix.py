@@ -1,4 +1,5 @@
-from macColors import *
+from Frontend.TerminalGraphics.macColors import *
+
 from random import randint
 import sys
 import time
