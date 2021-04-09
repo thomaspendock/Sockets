@@ -1,2 +1,2 @@
-# Sockets
-Just testing sockets in Python
+# Wormhole
+A terminal chat engine written Python.
