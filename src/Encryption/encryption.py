@@ -1,4 +1,4 @@
-import rsa
+# import rsa
 import pickle
 import hashlib
 
@@ -9,16 +9,19 @@ chunk_size = 53
 
 def lockandkey():
     '''Returns RSA lock and key pair'''
-    return rsa.newkeys(512)
+    # return rsa.newkeys(512)
+    return 1, 1
 
 def encrypt(data, lock):    
     chunks = [data[x:x+chunk_size] for x in range(0, len(data), chunk_size)]
-    chunks = [rsa.encrypt(x, lock) for x in chunks]
-    return pickle.dumps(chunks) # Pickled onion!
+    # chunks = [rsa.encrypt(x, lock) for x in chunks]
+    chunks = [x for x in chunks]
+    return pickle.dumps(chunks)
 
 def decrypt(data, key):
     chunks = pickle.loads(data)
-    decrypted_chunks = [rsa.decrypt(x, key) for x in chunks]
+    # decrypted_chunks = [rsa.decrypt(x, key) for x in chunks]
+    decrypted_chunks = [x for x in chunks]
     return b''.join(decrypted_chunks)
 
 def sha_hash(pswd):

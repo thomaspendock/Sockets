@@ -13,8 +13,6 @@ from Games import TicTacToeClass
 from Games import GameInterface
 import pickle
 
-from Receive import recv
-
 from Data.data import set_myname, set_myaddr, set_name
 
 # import user_info # not implemented
@@ -30,7 +28,7 @@ active_games = dict()
 def addr_str(ip_port):
     return ':'.join(ip_port)
 
-# Absolutley no parsing should be handled by API functions....
+# No parsing should be handled by API functions....
 class ParseError(Exception):
     def __init__(self, message):
         super().__init__(message); self.message = message
@@ -59,7 +57,6 @@ def parse(s):
     except GameInterface.GameError as e:
         frontend.error(e.message)
 
-        
 # The send thread
 def send_loop():
     '''Listens for any command the user types and sends'''
