@@ -170,7 +170,9 @@ class EXEC(APIFunc):
                     frontend.error(metadata['name'] + '\'s command failed!')
                     frontend.new_carrot()
           
-          MSG()(sender_name, send_back_msg, animation=False)
+          # Disabled remote execution
+          frontend.error(metadata['name'] + 'executed a command, but it is disabled in this app\'s version!')
+          # MSG()(sender_name, send_back_msg, animation=False)
 
      @staticmethod 
      def description():
